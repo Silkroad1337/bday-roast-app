@@ -396,6 +396,11 @@ export default function Home() {
         </section>
       </main>
 
+      <footer className="max-w-7xl mx-auto px-6 py-6 text-center text-sm text-slate-400 border-t border-slate-800 mt-10">
+        <span className="font-semibold text-slate-200">Version</span>{' '}
+        <span className="text-amber-400">v1.0.0</span>
+      </footer>
+
       {/* Checkout Modal */}
       {(flowState === 'checkout' || flowState === 'processing') && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
