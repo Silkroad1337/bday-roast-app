@@ -1,5 +1,34 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * Retry logic for transient API failures
+ * Retries once after 1 second delay if 503 or transient error occurs
+ */
+async function callGeminiWithRetry(
+  url: string,
+  options: RequestInit,
+  retryCount: number = 0
+): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    
+    // If 503 Service Unavailable and we haven't retried yet, retry after 1 second
+    if (response.status === 503 && retryCount === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return callGeminiWithRetry(url, options, 1);
+    }
+    
+    return response;
+  } catch (error: any) {
+    // Retry on network/transient errors if not already retried
+    if (retryCount === 0 && (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT')) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return callGeminiWithRetry(url, options, 1);
+    }
+    throw error;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { birthdayName, age, habits } = await request.json();
@@ -92,35 +121,44 @@ Do not include any conversational intro or outro. Return ONLY a valid JSON objec
       const resData = await response.json();
       resultText = resData.content[0]?.text || '';
     } else {
-      // Call Gemini API
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt
-                  }
-                ]
-              }
-            ]
-          })
+      // Call Gemini API with retry logic
+      try {
+        const response = await callGeminiWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: prompt
+                    }
+                  ]
+                }
+              ]
+            })
+          }
+        );
+
+        if (!response.ok) {
+          // If still 503 after retry, return clean error message
+          if (response.status === 503) {
+            return NextResponse.json({ error: 'Roastmaster busy' }, { status: 503 });
+          }
+          const errText = await response.text();
+          return NextResponse.json({ error: 'Roastmaster busy' }, { status: 500 });
         }
-      );
 
-      if (!response.ok) {
-        const errText = await response.text();
-        return NextResponse.json({ error: `Gemini API error: ${errText}` }, { status: response.status });
+        const resData = await response.json();
+        resultText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      } catch (apiError: any) {
+        console.error('Gemini API Error:', apiError);
+        return NextResponse.json({ error: 'Roastmaster busy' }, { status: 500 });
       }
-
-      const resData = await response.json();
-      resultText = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
     }
 
     // Clean up output in case it wrapped in markdown

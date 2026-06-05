@@ -56,7 +56,11 @@ export default function Home() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Failed to generate roast');
+        // Transform error message to be user-friendly
+        const errorMsg = err.error === 'Roastmaster busy'
+          ? 'Roastmaster is busy. Give it a second and try again!'
+          : err.error || 'Failed to generate roast';
+        throw new Error(errorMsg);
       }
 
       const aiData = await res.json();
@@ -267,8 +271,15 @@ export default function Home() {
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300">
-              <strong>Error:</strong> {errorMessage}
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚡</span>
+                <div>
+                  <p className="text-amber-200 font-semibold mb-1">Oops! Something went sideways</p>
+                  <p className="text-amber-100">{errorMessage}</p>
+                  <p className="text-amber-100/70 text-xs mt-2">Just click the orange button below and try again—the roastmaster will be ready! 😄</p>
+                </div>
+              </div>
             </div>
           )}
 
