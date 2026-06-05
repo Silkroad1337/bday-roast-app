@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import NewspaperTemplate, {
   type NewspaperData,
-  type NewspaperTemplateHandle,
 } from '@/components/NewspaperTemplate';
 
-type FlowState = 'input' | 'generating' | 'preview' | 'checkout' | 'processing' | 'unlocked';
+type FlowState = 'input' | 'generating' | 'preview';
 
 export default function Home() {
   // --- Input State ---
@@ -15,24 +14,28 @@ export default function Home() {
   const [habit1, setHabit1] = useState('');
   const [habit2, setHabit2] = useState('');
   const [habit3, setHabit3] = useState('');
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
 
   // --- Flow State ---
   const [flowState, setFlowState] = useState<FlowState>('input');
   const [generatedData, setGeneratedData] = useState<NewspaperData>({});
   const [errorMessage, setErrorMessage] = useState('');
 
-  const newspaperRef = useRef<NewspaperTemplateHandle>(null);
-
   // Derived
-  const isLocked = flowState !== 'unlocked';
-  const hasGenerated = flowState === 'preview' || flowState === 'checkout' || flowState === 'processing' || flowState === 'unlocked';
+  const hasGenerated = flowState === 'preview';
   const canGenerate = birthdayName.trim() && age && habit1.trim();
 
   // --- Handlers ---
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setPhotoUrl(URL.createObjectURL(file));
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      setPhotoBase64(base64String);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleGenerate = useCallback(async () => {
@@ -57,7 +60,7 @@ export default function Home() {
       }
 
       const aiData = await res.json();
-      setGeneratedData({
+      const roastData: NewspaperData = {
         mainHeadline: aiData.mainHeadline,
         birthdayName: birthdayName.trim(),
         age: Number(age),
@@ -68,7 +71,9 @@ export default function Home() {
         localAnnouncement: aiData.localAnnouncement,
         advertisement: aiData.advertisement,
         reporterName: aiData.reporterName,
-      });
+      };
+
+      setGeneratedData(roastData);
       setFlowState('preview');
     } catch (err: any) {
       setErrorMessage(err.message || 'Something went wrong.');
@@ -76,18 +81,15 @@ export default function Home() {
     }
   }, [birthdayName, age, habit1, habit2, habit3, canGenerate]);
 
-  const handlePayClick = () => setFlowState('checkout');
-  const handleCloseCheckout = () => setFlowState('preview');
+  const handlePayClick = () => {
+    // Save roast data and photo to localStorage
+    localStorage.setItem('pending_roast_data', JSON.stringify(generatedData));
+    if (photoBase64) {
+      localStorage.setItem('pending_roast_photo', photoBase64);
+    }
 
-  const handleConfirmPay = async () => {
-    setFlowState('processing');
-    // Simulate payment processing
-    await new Promise((r) => setTimeout(r, 2500));
-    setFlowState('unlocked');
-    // Auto-download after unlock
-    setTimeout(() => {
-      newspaperRef.current?.triggerDownload();
-    }, 600);
+    // Redirect to Razorpay Payment Page
+    window.location.href = 'https://rzp.io/l/BZsfu6uB';
   };
 
   const handleReset = () => {
@@ -96,7 +98,7 @@ export default function Home() {
     setHabit1('');
     setHabit2('');
     setHabit3('');
-    setPhotoUrl(null);
+    setPhotoBase64(null);
     setGeneratedData({});
     setFlowState('input');
     setErrorMessage('');
@@ -123,7 +125,7 @@ export default function Home() {
                 Birthday Roast <span className="text-amber-500">Generator</span>
               </h1>
               <p className="text-xs text-slate-500 font-medium">
-                AI-powered vintage newspaper roasts
+                AI-powered modern roasts
               </p>
             </div>
           </div>
@@ -157,7 +159,7 @@ export default function Home() {
           {/* Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Birthday Person&apos;s Name <span className="text-rose-400">*</span>
+              Subject Name <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
@@ -198,6 +200,219 @@ export default function Home() {
               placeholder="e.g., Falls asleep during movies"
             />
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Funny Habit #2
+            </label>
+            <input
+              type="text"
+              value={habit2}
+              onChange={(e) => setHabit2(e.target.value)}
+              disabled={hasGenerated}
+              className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="e.g., Aggressive lawn mowing at 7am"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Funny Habit #3
+            </label>
+            <input
+              type="text"
+              value={habit3}
+              onChange={(e) => setHabit3(e.target.value)}
+              disabled={hasGenerated}
+              className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="e.g., Says 'back in my day' unironically"
+            />
+          </div>
+
+          {/* Photo Upload */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Subject Mugshot (optional)
+            </label>
+            <div className="relative border-2 border-slate-800 border-dashed hover:border-amber-500/40 rounded-xl p-4 transition-all bg-slate-950 flex flex-col items-center justify-center cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                disabled={hasGenerated}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
+              />
+              <svg className="w-8 h-8 text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span className="text-xs font-semibold text-slate-400 text-center">
+                {photoBase64 ? 'Photo Loaded ✓' : 'Click to upload photo'}
+              </span>
+            </div>
+            {photoBase64 && !hasGenerated && (
+              <button
+                type="button"
+                onClick={() => setPhotoBase64(null)}
+                className="text-xs font-semibold text-red-400 hover:text-red-300 text-left mt-1 self-start"
+              >
+                Clear Photo
+              </button>
+            )}
+          </div>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300">
+              <strong>Error:</strong> {errorMessage}
+            </div>
+          )}
+
+          {/* Generate Button */}
+          {!hasGenerated && (
+            <button
+              onClick={handleGenerate}
+              disabled={!canGenerate || flowState === 'generating'}
+              className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-bold py-4 rounded-xl shadow-lg shadow-amber-500/10 transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-150"
+            >
+              {flowState === 'generating' ? (
+                <>
+                  <svg
+                    className="w-5 h-5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Generating your roast…
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  Generate Roast
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Post-generate info */}
+          {hasGenerated && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center">
+              <p className="text-sm text-amber-200/80">
+                🔥 Your roast is ready! Review the preview, then unlock to download the watermark-free high-res JPEG.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Right: Preview */}
+        <section className="lg:col-span-8 flex flex-col gap-4">
+          <div className="flex justify-between items-center bg-slate-900/20 border border-slate-800/80 px-6 py-4 rounded-xl backdrop-blur-sm">
+            <div>
+              <h3 className="text-sm font-bold text-slate-200">
+                {hasGenerated ? 'Watermarked Preview' : 'Preview'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {hasGenerated
+                  ? 'This is a preview with watermark. Purchase to unlock clean version.'
+                  : 'Fill in the form and click "Generate Roast" to begin'}
+              </p>
+            </div>
+            {hasGenerated && (
+              <div
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-amber-500/10 text-amber-400 border-amber-500/20`}
+              >
+                <span className={`w-2 h-2 rounded-full bg-amber-400`} />
+                Watermarked
+              </div>
+            )}
+          </div>
+
+          {/* Newspaper or Placeholder */}
+          <div className="overflow-x-auto w-full flex justify-center bg-slate-900/20 p-2 md:p-6 rounded-2xl border border-slate-800/50">
+            {hasGenerated ? (
+              <div className="w-full max-w-3xl min-w-[320px]">
+                <NewspaperTemplate
+                  data={generatedData}
+                  photoUrl={photoBase64}
+                  showWatermark={true}
+                />
+              </div>
+            ) : (
+              <div className="w-full max-w-3xl min-w-[320px] flex flex-col items-center justify-center py-32 gap-4 text-slate-600">
+                <svg className="w-20 h-20 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1"
+                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                  />
+                </svg>
+                <p className="text-lg font-semibold text-slate-500">Your roast will appear here</p>
+                <p className="text-sm text-slate-600">
+                  Fill in the details on the left and hit &quot;Generate Roast&quot;
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* CTA Button to Razorpay */}
+          {hasGenerated && (
+            <button
+              onClick={handlePayClick}
+              className="flex items-center gap-2 font-serif font-bold px-8 py-4 rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-150 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white justify-center"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+              Remove Watermark &amp; Download High-Res — ₹199
+            </button>
+          )}
+        </section>
+      </main>
+
+      <footer className="max-w-7xl mx-auto px-6 py-6 text-center text-sm text-slate-400 border-t border-slate-800 mt-10">
+        <span className="font-semibold text-slate-200">Version</span>{' '}
+        <span className="text-amber-400">v1.0.0</span>
+      </footer>
+    </div>
+  );
+}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Funny Habit #2

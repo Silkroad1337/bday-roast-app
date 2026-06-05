@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useRef, forwardRef, useImperativeHandle } from 'react';
-import { toJpeg } from 'html-to-image';
+import React, { forwardRef } from 'react';
+
+/**
+ * NewspaperTemplate Component
+ * 
+ * Props:
+ * - data: NewspaperData object with roast content
+ * - photoUrl: Base64 photo string (optional)
+ * - showWatermark: Boolean to control watermark display
+ * 
+ * Features:
+ * - Large, readable typography for mobile users
+ * - Conditional watermark overlay
+ * - Responsive design with print-friendly styling
+ */
 
 export interface NewspaperData {
   mainHeadline?: string;
@@ -19,37 +32,11 @@ export interface NewspaperData {
 interface NewspaperTemplateProps {
   data: NewspaperData;
   photoUrl?: string | null;
-  isLocked: boolean;
-  onDownloadClick?: () => void;
+  showWatermark?: boolean;
 }
 
-export interface NewspaperTemplateHandle {
-  triggerDownload: () => Promise<void>;
-}
-
-const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateProps>(
-  function NewspaperTemplate({ data, photoUrl, isLocked, onDownloadClick }, ref) {
-    const newspaperRef = useRef<HTMLDivElement>(null);
-
-    const handleDownload = async () => {
-      if (newspaperRef.current === null) return;
-      try {
-        const dataUrl = await toJpeg(newspaperRef.current, {
-          quality: 0.95,
-          pixelRatio: 2,
-          backgroundColor: '#f4f1ea',
-        });
-        const link = document.createElement('a');
-        link.download = `${data.mainHeadline?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'birthday-roast'}.jpg`;
-        link.href = dataUrl;
-        link.click();
-      } catch (error) {
-        console.error('Failed to generate image:', error);
-      }
-    };
-
-    useImperativeHandle(ref, () => ({ triggerDownload: handleDownload }));
-
+const NewspaperTemplate = forwardRef<HTMLDivElement, NewspaperTemplateProps>(
+  function NewspaperTemplate({ data, photoUrl, showWatermark = false }, ref) {
     const headline = data.mainHeadline || 'LOCAL LEGEND REACHES HISTORIC AGE!';
     const name = data.birthdayName || 'John Doe';
     const age = data.age || 30;
@@ -77,7 +64,7 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
       data.localAnnouncement ||
       'The City Council has passed an emergency resolution declaring any nap exceeding 45 minutes as an "essential health measure" for individuals of the target\'s advanced age.';
 
-    // Split the advertisement text into a headline and body if it contains a period or newline
+    // Split the advertisement text into a headline and body
     let adHeadline = 'Is your back hurting?';
     let adBody =
       'Try "Miracle Balm No. 9"! Specially formulated for people who make noises when they sit down.';
@@ -92,63 +79,15 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
     }
 
     return (
-      <div className="flex flex-col items-center gap-6 w-full max-w-4xl mx-auto p-4">
-        {/* Action Button */}
-        <button
-          onClick={isLocked ? onDownloadClick : handleDownload}
-          className={`flex items-center gap-2 font-serif font-bold px-8 py-4 rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 duration-150 ${
-            isLocked
-              ? 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white'
-              : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white'
-          }`}
-        >
-          {isLocked ? (
-            <>
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-              Remove Watermark &amp; Download High-Res — ₹199
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              Download High-Res Print JPEG
-            </>
-          )}
-        </button>
-
+      <div className="flex flex-col items-center gap-6 w-full">
         {/* Printable Area */}
         <div
-          ref={newspaperRef}
-          className="w-full bg-[#f4f1ea] text-zinc-900 p-10 font-serif border-[12px] border-zinc-800 shadow-2xl relative select-none overflow-hidden"
+          ref={ref}
+          className="w-full bg-[#f4f1ea] text-zinc-900 p-8 md:p-12 font-serif border-[12px] border-zinc-800 shadow-2xl relative select-none overflow-hidden"
           style={{ fontFamily: 'Georgia, serif' }}
         >
-          {/* PREVIEW ONLY Watermark */}
-          {isLocked && (
+          {/* WATERMARK OVERLAY - Conditional */}
+          {showWatermark && (
             <div
               className="absolute inset-0 z-30 pointer-events-none overflow-hidden flex items-center justify-center"
               aria-hidden="true"
@@ -208,7 +147,7 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
               {headline}
             </h2>
             <div className="h-0.5 bg-zinc-900 w-1/3 mx-auto my-3" />
-            <p className="text-lg italic text-zinc-700 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl italic text-zinc-700 max-w-2xl mx-auto">
               Subject identified as{' '}
               <span className="font-bold not-italic">{name}</span>, who has somehow survived
               for <span className="font-bold not-italic">{age} years</span> despite
@@ -236,7 +175,7 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
                     />
                     <div className="absolute inset-0 bg-black/5 mix-blend-overlay" />
                   </div>
-                  <p className="text-xs italic text-center mt-2 text-zinc-700">
+                  <p className="text-sm italic text-center mt-2 text-zinc-700">
                     Exhibit A: {name} in their natural habitat, attempting to look innocent.
                   </p>
                 </div>
@@ -260,9 +199,10 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
                 </div>
               )}
 
-              <div className="text-sm leading-relaxed text-zinc-800 text-justify flex flex-col gap-4 font-serif">
+              {/* Article text - LARGE & READABLE */}
+              <div className="text-base md:text-lg lg:text-xl leading-relaxed text-zinc-800 text-justify flex flex-col gap-4 font-serif">
                 <p>
-                  <span className="text-4xl font-extrabold float-left mr-2 mt-1 text-zinc-950">
+                  <span className="text-5xl md:text-6xl font-extrabold float-left mr-2 mt-1 text-zinc-950">
                     {article1.charAt(0)}
                   </span>
                   {article1.substring(1)}
@@ -272,36 +212,36 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
               </div>
             </div>
 
-            {/* Right Column */}
+            {/* Right Column - LARGE & READABLE */}
             <div className="flex flex-col gap-6">
               <div className="border-b border-zinc-400 pb-4">
-                <h3 className="text-lg font-extrabold uppercase leading-tight text-zinc-950 mb-2">
+                <h3 className="text-xl md:text-2xl font-extrabold uppercase leading-tight text-zinc-950 mb-2">
                   WEATHER FORECAST
                 </h3>
                 <p className="text-xs font-semibold uppercase text-zinc-500 mb-1">
                   High Chance of Whining
                 </p>
-                <p className="text-sm leading-tight text-zinc-800 text-justify">{weather}</p>
+                <p className="text-base md:text-lg leading-tight text-zinc-800 text-justify">{weather}</p>
               </div>
 
               <div className="border-b border-zinc-400 pb-4">
-                <h3 className="text-lg font-extrabold uppercase leading-tight text-zinc-950 mb-2">
+                <h3 className="text-xl md:text-2xl font-extrabold uppercase leading-tight text-zinc-950 mb-2">
                   LOCAL ANNOUNCEMENT
                 </h3>
                 <p className="text-xs font-semibold uppercase text-zinc-500 mb-1">
                   Public Notice
                 </p>
-                <p className="text-sm leading-tight text-zinc-800 text-justify">{announcement}</p>
+                <p className="text-base md:text-lg leading-tight text-zinc-800 text-justify">{announcement}</p>
               </div>
 
-              <div className="border-2 border-zinc-800 p-3 bg-zinc-100 flex flex-col items-center text-center mt-2">
+              <div className="border-2 border-zinc-800 p-4 bg-zinc-100 flex flex-col items-center text-center mt-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-1">
                   Advertisement
                 </span>
-                <h4 className="font-black uppercase tracking-tight text-sm text-zinc-950 mb-1">
+                <h4 className="font-black uppercase tracking-tight text-base md:text-lg text-zinc-950 mb-1">
                   {adHeadline}
                 </h4>
-                <p className="text-xs italic text-zinc-700 leading-tight">{adBody}</p>
+                <p className="text-sm md:text-base italic text-zinc-700 leading-tight">{adBody}</p>
                 <div className="border border-zinc-800 text-[10px] font-bold px-2 py-0.5 mt-2 uppercase">
                   Only 5¢ a jar
                 </div>
@@ -322,3 +262,4 @@ const NewspaperTemplate = forwardRef<NewspaperTemplateHandle, NewspaperTemplateP
 );
 
 export default NewspaperTemplate;
+

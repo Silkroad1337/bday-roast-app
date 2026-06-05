@@ -13,28 +13,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'API Key not configured on the server.' }, { status: 500 });
     }
 
-    const prompt = `You are a satirical writer for a 1920s newspaper tabloid "The Daily Roast".
-Write a front-page birthday roast of a person with the following details:
+    const prompt = `You are a ruthless, modern-day comedy roastmaster writing for a satirical digital newspaper. Your job is to take brief inputs about a person's birthday and write a hyper-aggressive, hilarious, and highly shareable front-page roast.
+
+CRITICAL CONSTRAINTS:
+1. NO VINTAGE OR ARCHAIC LANGUAGE. Do not use words like "speakeasy," "flapper," "mortal coil," or "alas." Speak like a modern Indian millennial or Gen Z internet user. Use modern sarcasm.
+2. EXTREME BREVITY. Mobile users do not read long paragraphs. The article body MUST NOT exceed 3 sentences (maximum 40 words).
+3. BE BRUTAL BUT FUNNY. Treat their minor quirks and annoying habits as massive character flaws or breaking news tragedies.
+
+INPUT FORMAT:
 Name: ${birthdayName}
 Age: ${age}
-Three funny habits:
-1. ${habits[0] || 'No habit provided'}
-2. ${habits[1] || 'No habit provided'}
-3. ${habits[2] || 'No habit provided'}
+Funny Habits/Offences: ${habits.filter(Boolean).join(', ') || 'No habit provided'}
 
-Return a JSON object with these EXACT keys:
+OUTPUT STRICTLY IN JSON FORMAT matching this schema:
 {
-  "mainHeadline": "A sensationalist, dramatic, uppercase 1920s tabloid style headline",
-  "articleText1": "Paragraph 1: Introduce the subject and age. Satirize their survival despite their questionable life decisions.",
-  "articleText2": "Paragraph 2: Elaborate on the three funny habits in a detailed, exaggerated tabloid mock-investigation style.",
-  "articleText3": "Paragraph 3: Conclude with a fake quote from an eyewitness or family member expressing shock or amusement.",
-  "weatherForecast": "A 2-sentence humorous weather forecast tailored to the subject's habits (e.g., 90% chance of joint groans and sighing).",
-  "localAnnouncement": "A funny public notice or announcement related to the subject.",
-  "advertisement": "A funny vintage ad headline and text selling a fake solution for their habits (e.g., Miracle Balm No. 9 for Dad Jokes).",
-  "reporterName": "A clever 1920s pen name (e.g., Snoop Sterling, Scoop McGee)"
+  "mainHeadline": "A short, aggressive, all-caps headline that punches hard (Max 8 words)",
+  "subHeadline": "A witty secondary headline (Max 12 words)",
+  "articleBody": "Exactly 3 sentences of brutal, modern roasting based on their habits. Max 40 words.",
+  "sidebarHeadline1": "Short 2-3 word roast",
+  "sidebarText1": "One punchy sentence",
+  "sidebarHeadline2": "Short 2-3 word roast",
+  "sidebarText2": "One punchy sentence"
+}
+
+EXAMPLE INPUT:
+Name: Abhiram
+Age: 26
+Funny Habits/Offences: speaks about ducati all the time, always complaining, acts matured for a 25 year old
+
+EXAMPLE OUTPUT:
+{
+  "mainHeadline": "LOCAL 26-YEAR-OLD STILL PRETENDS HE CAN AFFORD DUCATI",
+  "subHeadline": "Medical marvel: Man survives solely on complaining and unsolicited motorcycle advice.",
+  "articleBody": "In a shocking turn of events, 26-year-old Abhiram has spent another year acting like a retired uncle while bringing absolutely zero Ducatis to the group chat. Friends report his daily routine consists of dropping heavy Italian engine specs and whining about minor inconveniences. Experts recommend muting his WhatsApp until his bank account matches his attitude.",
+  "sidebarHeadline1": "CAUGHT LACKING",
+  "sidebarText1": "Still riding a basic commuter despite acting like a MotoGP champion.",
+  "sidebarHeadline2": "PREMATURE AGING",
+  "sidebarText2": "Acts 45, has the emotional maturity of a toddler when mildly inconvenienced."
 }
 
 Do not include any conversational intro or outro. Return ONLY a valid JSON object. Do not wrap in markdown codeblocks like \`\`\`json.`;
+
+    const splitSentences = (text: string) => {
+      return text
+        .match(/[^.!?]+[.!?]+/g)
+        ?.map((sentence) => sentence.trim())
+        .filter(Boolean) || [];
+    };
 
     let resultText = '';
 
@@ -111,8 +136,33 @@ Do not include any conversational intro or outro. Return ONLY a valid JSON objec
     cleanText = cleanText.trim();
 
     try {
-      const parsedData = JSON.parse(cleanText);
-      return NextResponse.json(parsedData);
+      const parsedData = JSON.parse(cleanText) as Record<string, unknown>;
+
+      const articleBody = String(parsedData.articleBody || parsedData.body || '');
+      const sentences = splitSentences(articleBody);
+      const [articleText1 = '', articleText2 = '', articleText3 = ''] = sentences;
+
+      const responseData = {
+        mainHeadline: String(parsedData.mainHeadline || parsedData.headline || 'ROAST ALERT'),
+        articleText1: String(parsedData.articleText1 || articleText1 || ''),
+        articleText2: String(parsedData.articleText2 || articleText2 || ''),
+        articleText3: String(parsedData.articleText3 || articleText3 || ''),
+        weatherForecast: String(
+          parsedData.weatherForecast ||
+            'Clear skies with a 100% chance of public embarrassment.'
+        ),
+        localAnnouncement: String(
+          parsedData.localAnnouncement ||
+            'Official notice: This roast is trending for a reason.'
+        ),
+        advertisement: String(
+          parsedData.advertisement ||
+            'Buy less clout, sell more chill — instant relief from attention-seeking.'
+        ),
+        reporterName: String(parsedData.reporterName || 'Roast Reporter'),
+      };
+
+      return NextResponse.json(responseData);
     } catch (parseError) {
       console.error('Failed to parse model response:', cleanText);
       return NextResponse.json({ 
