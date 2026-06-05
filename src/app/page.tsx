@@ -93,7 +93,7 @@ export default function Home() {
     }
 
     // Redirect to Razorpay Payment Page
-    window.location.href = 'https://rzp.io/l/BZsfu6uB';
+    window.location.href = 'https://rzp.io/rzp/8Zsfu6uB';
   };
 
   const handleReset = () => {
