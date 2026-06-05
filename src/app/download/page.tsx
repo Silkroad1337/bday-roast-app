@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toJpeg } from 'html-to-image';
 import NewspaperTemplate, { type NewspaperData } from '@/components/NewspaperTemplate';
@@ -15,7 +15,21 @@ import NewspaperTemplate, { type NewspaperData } from '@/components/NewspaperTem
  * 4. Displays clean (unwatermarked) NewspaperTemplate
  * 5. Provides a download button using html-to-image library
  */
-export default function DownloadPage() {
+
+// Fallback loading component
+function DownloadPageFallback() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+        <p className="text-slate-400">Loading your roast...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main download page component (uses useSearchParams)
+function DownloadPageContent() {
   const searchParams = useSearchParams();
   const newspaperRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -232,5 +246,14 @@ export default function DownloadPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Export with Suspense boundary to handle useSearchParams
+export default function DownloadPage() {
+  return (
+    <Suspense fallback={<DownloadPageFallback />}>
+      <DownloadPageContent />
+    </Suspense>
   );
 }
