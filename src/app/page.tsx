@@ -412,8 +412,6 @@ export default function Home() {
     </div>
   );
 }
-
-          <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Funny Habit #2
             </label>
