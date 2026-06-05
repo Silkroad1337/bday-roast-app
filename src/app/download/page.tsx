@@ -1,54 +1,29 @@
 'use client';
 
-import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
 import { toJpeg } from 'html-to-image';
 import NewspaperTemplate, { type NewspaperData } from '@/components/NewspaperTemplate';
 
 /**
  * Download Page - Accessed after successful Razorpay payment
- * 
+ *
  * Flow:
- * 1. Razorpay posts back to /api/payment-callback with a form payload.
- * 2. The API route redirects the browser to /download?payment_id=... using HTTP 303.
- * 3. This page verifies payment_id and status query params.
- * 4. Retrieves roast data and photo from localStorage.
- * 5. Displays clean (unwatermarked) NewspaperTemplate and download button.
+ * 1. Razorpay redirects to /download after payment.
+ * 2. This page reads the roast data stored in localStorage.
+ * 3. Displays a clean, unwatermarked NewspaperTemplate.
+ * 4. Allows the user to download a high-resolution JPEG.
  */
 
-// Fallback loading component
-function DownloadPageFallback() {
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
-        <p className="text-slate-400">Loading your roast...</p>
-      </div>
-    </div>
-  );
-}
-
-// Main download page component (uses useSearchParams)
+// Main download page component
 function DownloadPageContent() {
-  const searchParams = useSearchParams();
   const newspaperRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [roastData, setRoastData] = useState<NewspaperData | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
-  // Check for payment success on mount
+  // Load stored roast data on mount
   useEffect(() => {
-    const paymentId = searchParams.get('payment_id');
-    const status = searchParams.get('status');
-
-    if (!paymentId || status === 'failed' || status === 'error') {
-      // Invalid or failed callback flow
-      setHasError(true);
-      return;
-    }
-
-    // Retrieve data from localStorage
     const storedRoastData = localStorage.getItem('pending_roast_data');
     const storedPhoto = localStorage.getItem('pending_roast_photo');
 
@@ -67,7 +42,7 @@ function DownloadPageContent() {
       console.error('Failed to parse roast data from localStorage:', error);
       setHasError(true);
     }
-  }, [searchParams]);
+  }, []);
 
   /**
    * Handle JPEG download using html-to-image
@@ -250,11 +225,7 @@ function DownloadPageContent() {
   );
 }
 
-// Export with Suspense boundary to handle useSearchParams
+// Export download page directly
 export default function DownloadPage() {
-  return (
-    <Suspense fallback={<DownloadPageFallback />}>
-      <DownloadPageContent />
-    </Suspense>
-  );
+  return <DownloadPageContent />;
 }
