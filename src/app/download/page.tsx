@@ -9,11 +9,11 @@ import NewspaperTemplate, { type NewspaperData } from '@/components/NewspaperTem
  * Download Page - Accessed after successful Razorpay payment
  * 
  * Flow:
- * 1. User completes payment on Razorpay → redirected to /download?razorpay_payment_id=pay_xxx
- * 2. This page verifies the payment_id exists in URL params
- * 3. Retrieves roast data and photo from localStorage
- * 4. Displays clean (unwatermarked) NewspaperTemplate
- * 5. Provides a download button using html-to-image library
+ * 1. Razorpay posts back to /api/payment-callback with a form payload.
+ * 2. The API route redirects the browser to /download?payment_id=... using HTTP 303.
+ * 3. This page verifies payment_id and status query params.
+ * 4. Retrieves roast data and photo from localStorage.
+ * 5. Displays clean (unwatermarked) NewspaperTemplate and download button.
  */
 
 // Fallback loading component
@@ -39,10 +39,11 @@ function DownloadPageContent() {
 
   // Check for payment success on mount
   useEffect(() => {
-    const paymentId = searchParams.get('razorpay_payment_id');
+    const paymentId = searchParams.get('payment_id');
+    const status = searchParams.get('status');
 
-    if (!paymentId) {
-      // Payment ID missing - access denied
+    if (!paymentId || status === 'failed' || status === 'error') {
+      // Invalid or failed callback flow
       setHasError(true);
       return;
     }
